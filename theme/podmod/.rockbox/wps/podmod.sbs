@@ -1,0 +1,17 @@
+# podmod - menu and browser chrome for iPod mini (138x110, 4 greys)
+%Fl(2,14-Nimbus.fnt)
+%Fl(3,10-Nimbus.fnt)
+%xl(M,mode.bmp,0,0,5)
+#
+# Title band: play state, centred screen title, battery
+%V(0,0,138,16,3)%Vf(3)%Vb(0)
+
+%V(3,4,9,9,-)%Vf(3)%Vb(0)
+%?mp<|%xd(Mb)|%xd(Mc)|%xd(Md)|%xd(Me)>
+%V(15,0,86,16,2)%Vf(3)%Vb(0)
+%s%ac%Lt
+%V(102,2,34,13,3)%Vf(3)%Vb(0)
+%ar%?bp<+|>%bl%%
+#
+# List area
+%Vi(-,0,17,138,93,-)

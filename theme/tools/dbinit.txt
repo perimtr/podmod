@@ -1,0 +1,6 @@
+wait 6000
+key select
+wait 2000
+key select
+wait 12000
+quit

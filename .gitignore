@@ -1,0 +1,23 @@
+# Fetched or built locally
+/src/
+/downloads/
+/tools/arm/
+/tools/sdl2/
+/tools/ipodpatcher
+/tools/convbdf
+/firmware/out/
+/firmware/logo.bmp
+/lang/dev/
+/lang/sim/
+/lang/v4.0/
+/theme/podmod/.rockbox/langs/
+/theme/shots/
+/fonts/*.bmp
+/fonts/ref-15.fnt
+/fonts/dev-15.fnt
+
+# Private to one device or one person: never publish
+/backup/
+/firmware/boot-logo-trace.txt
+
+.DS_Store

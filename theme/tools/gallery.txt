@@ -1,0 +1,69 @@
+wait 14000
+dump
+key select
+wait 2000
+dump
+key select
+wait 1500
+dump
+key down
+wait 300
+key down
+wait 300
+key select
+wait 1500
+dump
+key down
+wait 300
+key select
+wait 1500
+dump
+key select
+wait 4500
+dump
+key down
+wait 400
+dump
+wait 3000
+hold menu 900
+wait 1500
+key down
+wait 300
+key down
+wait 300
+key down
+wait 300
+key select
+wait 1500
+dump
+key down
+wait 200
+key down
+wait 200
+key down
+wait 200
+key down
+wait 200
+key down
+wait 200
+key down
+wait 200
+key down
+wait 200
+key down
+wait 200
+key down
+wait 200
+wait 500
+dump
+key select
+wait 1500
+dump
+key menu
+wait 1000
+key up
+wait 400
+key select
+wait 2500
+dump
+quit

@@ -1,0 +1,41 @@
+# podmod - now playing screen for iPod mini (138x110, 4 greys)
+# Laid out like the menus: title band, then large centred title / artist / album.
+%wd
+%Fl(2,15-Podmod-Helvetica-Bold.fnt)
+%Fl(3,15-Adobe-Helvetica.fnt)
+%Fl(4,10-Nimbus.fnt)
+%Fl(5,14-Nimbus.fnt)
+%xl(M,mode.bmp,0,0,5)
+#
+# Title band: play state, "Now Playing", battery
+%V(0,0,138,16,5)%Vf(3)%Vb(0)
+
+%V(3,4,9,9,-)%Vf(3)%Vb(0)
+%?mp<%xd(Ma)|%xd(Mb)|%xd(Mc)|%xd(Md)|%xd(Me)>
+%V(15,0,86,16,5)%Vf(3)%Vb(0)
+%acNow Playing
+%V(102,2,34,13,4)%Vf(3)%Vb(0)
+%ar%?bp<+|>%bl%%
+#
+# Position in the list, shuffle / repeat
+%V(4,18,130,11,4)%Vf(1)
+%al%pp of %pe%ar%?ps<Shuffle |>%?mm<|Repeat|Repeat 1|Repeat|A-B>
+#
+# Title, artist, album
+%V(3,30,132,17,2)
+%ac%s%?it<%it|%fn>
+%V(3,48,132,17,3)
+%ac%s%?ia<%ia|%d(2)>
+%V(3,65,132,17,3)%Vf(1)
+%ac%s%?id<%id|%d(1)>
+#
+# Progress bar and times; a volume bar takes their place while the volume changes
+%?mv(2)<%Vd(vol)%Vd(volt)|%Vd(prog)%Vd(progt)>
+%Vl(prog,6,86,126,7,-)
+%pb(0,0,126,7)
+%Vl(progt,4,96,130,12,4)
+%al%pc%ar-%pr
+%Vl(vol,6,86,126,7,-)
+%pv(0,0,126,7)
+%Vl(volt,4,96,130,12,4)
+%acVolume

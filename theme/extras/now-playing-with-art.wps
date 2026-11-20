@@ -1,0 +1,47 @@
+# podmod - now playing screen for iPod mini (138x110, 4 greys)
+%wd
+%Fl(2,10-Nimbus.fnt)
+%Fl(4,12-Adobe-Helvetica.fnt)
+%Fl(3,14-Nimbus.fnt)
+%xl(M,mode.bmp,0,0,5)
+#
+# Top band: playlist position, clock, battery
+%V(0,0,138,12,2)%Vf(3)%Vb(0)
+%al %pp of %pe%ac%cl:%cM%ar%?bp<+|>%bl%% 
+#
+# Album art present: art left, text right
+%?C<%Vd(art)%Vd(t1)%Vd(t2)%Vd(t3)%Vd(t4)|%Vd(n1)%Vd(n2)%Vd(n3)%Vd(n4)>
+%Vl(art,4,16,52,52,-)
+%Cl(0,0,52,52,c,c)
+%Cd
+%Vl(t1,60,14,76,16,3)
+%s%?it<%it|%fn>
+%Vl(t2,60,30,76,14,4)
+%s%?ia<%ia|%d(2)>
+%Vl(t3,60,45,76,12,2)%Vf(1)
+%s%?id<%id|%d(1)>
+%Vl(t4,60,57,76,12,2)%Vf(1)
+%s%?It<Next: %It|%?iy<%iy|>>
+#
+# No album art: centred text
+%Vl(n1,4,16,130,16,3)
+%ac%s%?it<%it|%fn>
+%Vl(n2,4,33,130,14,4)
+%ac%s%?ia<%ia|%d(2)>
+%Vl(n3,4,48,130,12,2)%Vf(1)
+%ac%s%?id<%id|%d(1)>
+%Vl(n4,4,60,130,12,2)%Vf(1)
+%ac%s%?It<Next: %It|%?iy<%iy|>>
+#
+# Progress
+%V(4,73,130,4,-)
+%pb(0,0,130,4)
+%V(4,80,130,12,2)
+%al%pc%ar-%pr
+#
+# Bottom band: state, format, volume
+%V(0,97,138,13,2)%Vf(3)%Vb(0)
+%V(3,99,9,9,-)
+%?mp<%xd(Ma)|%xd(Mb)|%xd(Mc)|%xd(Md)|%xd(Me)>
+%V(15,97,123,13,2)%Vf(3)%Vb(0)
+%al%?fc<MP1|MP2|MP3|AIFF|WAV|Vorbis|FLAC|MPC|AC3|WavPack|ALAC|AAC|Shorten|SID|ADX|NSF|Speex|SPC|APE|WMA|WMA Pro|> %fk kHz%ar%?ps<shuf |>%?mm<|rep |rep1 |shuf |ab >%pv dB 

@@ -1,0 +1,332 @@
+diff --git a/apps/keymaps/keymap-ipod.c b/apps/keymaps/keymap-ipod.c
+index 787d9304..a84bbd9c 100644
+--- a/apps/keymaps/keymap-ipod.c
++++ b/apps/keymaps/keymap-ipod.c
+@@ -47,8 +47,9 @@ static const struct button_mapping button_context_standard[]  = {
+     { ACTION_STD_CANCEL,        BUTTON_LEFT,                        BUTTON_NONE },
+     { ACTION_STD_OK,            BUTTON_RIGHT,                       BUTTON_NONE },
+     { ACTION_STD_OK,            BUTTON_SELECT|BUTTON_REL,           BUTTON_SELECT },
+-    { ACTION_STD_MENU,          BUTTON_MENU|BUTTON_REL,             BUTTON_MENU },
+-    { ACTION_STD_QUICKSCREEN,   BUTTON_MENU|BUTTON_REPEAT,          BUTTON_MENU },
++    /* podmod: Menu goes back one level (like Apple's firmware); hold for main menu */
++    { ACTION_STD_CANCEL,        BUTTON_MENU|BUTTON_REL,             BUTTON_MENU },
++    { ACTION_STD_MENU,          BUTTON_MENU|BUTTON_REPEAT,          BUTTON_MENU },
+     { ACTION_STD_CONTEXT,       BUTTON_SELECT|BUTTON_REPEAT,        BUTTON_SELECT },
+     { ACTION_STD_CANCEL,        BUTTON_PLAY|BUTTON_REPEAT,          BUTTON_NONE },
+ 
+@@ -90,8 +91,9 @@ static const struct button_mapping button_context_wps[]  = {
+     { ACTION_WPS_BROWSE,    BUTTON_SELECT|BUTTON_REL,           BUTTON_SELECT },
+     { ACTION_WPS_CONTEXT,   BUTTON_SELECT|BUTTON_REPEAT,        BUTTON_SELECT },
+     { ACTION_WPS_HOTKEY,        BUTTON_SELECT|BUTTON_PLAY,      BUTTON_NONE },
+-    { ACTION_WPS_MENU,          BUTTON_MENU|BUTTON_REL,         BUTTON_MENU },
+-    { ACTION_WPS_QUICKSCREEN,   BUTTON_MENU|BUTTON_REPEAT,      BUTTON_MENU },
++    /* podmod: Menu returns to the list you came from; hold for main menu */
++    { ACTION_WPS_BROWSE,        BUTTON_MENU|BUTTON_REL,         BUTTON_MENU },
++    { ACTION_WPS_MENU,          BUTTON_MENU|BUTTON_REPEAT,      BUTTON_MENU },
+ 
+     LAST_ITEM_IN_LIST,
+ }; /* button_context_wps */
+diff --git a/apps/lang/english.lang b/apps/lang/english.lang
+index a796b0aa..9a3d99ba 100644
+--- a/apps/lang/english.lang
++++ b/apps/lang/english.lang
+@@ -17285,3 +17285,18 @@
+     recording_remote: "remote recording screen skin"
+   </voice>
+ </phrase>
++
++<phrase>
++  id: LANG_PODMOD_ADVANCED
++  desc: podmod: settings submenu holding the full Rockbox settings
++  user: core
++  <source>
++    *: "Advanced"
++  </source>
++  <dest>
++    *: "Advanced"
++  </dest>
++  <voice>
++    *: "Advanced"
++  </voice>
++</phrase>
+diff --git a/apps/main.c b/apps/main.c
+index 9ce254b9..c42f9926 100644
+--- a/apps/main.c
++++ b/apps/main.c
+@@ -265,11 +265,10 @@ int show_logo_boot( void )
+         lcd_putsxy((LCD_WIDTH/2) - (ver_w/2), 0, version);
+     lcd_bmp(&bm_rockboxlogo, (LCD_WIDTH - BMPWIDTH_rockboxlogo) / 2, 16);
+ #else
+-    lcd_bmp(&bm_rockboxlogo, (LCD_WIDTH - BMPWIDTH_rockboxlogo) / 2, 10);
+-    if (ver_w > LCD_WIDTH)
+-        lcd_putsxy(0, LCD_HEIGHT-font_h, rbversion);
+-    else
+-        lcd_putsxy((LCD_WIDTH/2) - (ver_w/2), LCD_HEIGHT-font_h, version);
++    /* podmod: no version text; the logo sits exactly where the iPod's own
++       power-on logo is drawn (row 23), so the hand-over is seamless */
++    (void)ver_w;
++    lcd_bmp(&bm_rockboxlogo, (LCD_WIDTH - BMPWIDTH_rockboxlogo) / 2, 23);
+ #endif
+     lcd_setfont(FONT_UI);
+     lcd_update();
+@@ -320,8 +319,8 @@ static int INIT_ATTR init_dircache(bool preinit)
+         {
+             if (result > 0)
+             {
+-                /* Print "Scanning disk..." to the display. */
+-                splash(0, str(LANG_SCANNING_DISK));
++                /* podmod: keep the logo on screen instead of a
++                   "Scanning disk..." box drawn over it */
+                 dircache_wait();
+                 backlight_on();
+                 show_logo_boot();
+@@ -369,17 +368,15 @@ static void init_tagcache(void)
+                 talk_number(tagcache_get_max_commit_step(), true);
+             }
+ #endif
+-            if (lang_is_rtl())
++            /* podmod: a slim progress bar under the logo instead of a
++               text box drawn over it */
+             {
+-                splash_progress(ret, tagcache_get_max_commit_step(),
+-                               "[%d/%d] %s", ret, tagcache_get_max_commit_step(),
+-                               str(LANG_TAGCACHE_INIT));
+-            }
+-            else
+-            {
+-                splash_progress(ret, tagcache_get_max_commit_step(),
+-                                "%s [%d/%d]", str(LANG_TAGCACHE_INIT), ret,
+-                                tagcache_get_max_commit_step());
++                int max = tagcache_get_max_commit_step();
++                int w = LCD_WIDTH - 40;
++                lcd_drawrect(20, LCD_HEIGHT - 12, w, 5);
++                if (max > 0)
++                    lcd_fillrect(20, LCD_HEIGHT - 12, w * ret / max, 5);
++                lcd_update();
+             }
+             clear = true;
+         }
+diff --git a/apps/menus/main_menu.c b/apps/menus/main_menu.c
+index a09d81de..3d78fdad 100644
+--- a/apps/menus/main_menu.c
++++ b/apps/menus/main_menu.c
+@@ -48,6 +48,7 @@
+ #include "wps.h"
+ #include "skin_buffer.h"
+ #include "disk.h"
++#include "tagcache.h"
+ 
+ static const struct browse_folder_info config = {ROCKBOX_DIR, SHOW_CFG};
+ static int show_info(void);
+@@ -369,86 +370,38 @@ static int info_action_callback(int action, struct gui_synclist *lists)
+             return action;
+     }
+ #endif
+-/* Note: these need to be in the same order as enum infoscreenorder */
+-    simplelist_reset_lines();
+-/* INFO_BATTERY */
+-#if CONFIG_CHARGING == CHARGING_SIMPLE
+-    /* Only know if plugged */
+-    if (charger_inserted())
+-        simplelist_setline(str(LANG_BATTERY_CHARGE));
+-    else
+-#elif CONFIG_CHARGING >= CHARGING_MONITOR
+-    /* Go by what power management reports */
+-    if (charging_state())
+-        simplelist_setline(str(LANG_BATTERY_CHARGE));
+-    else
+-#endif /* CONFIG_CHARGING = */
+-    if (battery_level() >= 0)
+-        simplelist_addline(str(LANG_BATTERY_TIME),
+-        battery_level(), battery_time() / 60, battery_time() % 60);
+-    else
+-        simplelist_setline("Battery n/a"); /* translating worth it? */
+-
+-/* INFO_BUFFER */
+-    long kib = audio_buffer_size() >> 10; /* to KiB */
+-    output_dyn_value(s1, sizeof(s1), kib, kibyte_units, 3, true);
+-    simplelist_addline("%s %s", str(LANG_BUFFER_STAT), s1);
+-
+-#ifdef HAVE_RECORDING
+-/* INFO_REC_DIR_TITLE*/
+-    simplelist_setline(str(LANG_REC_DIR));
+-/* INFO_REC_DIR */
+-    simplelist_setline(global_settings.rec_directory);
+-#endif
+-
+-/* INFO_ROOT_DIR_TITLE */
+-    simplelist_setline(str(LANG_DISPLAY_FULL_PATH));
+-/* INFO_ROOT_DIR */
+-    simplelist_setline(root_realpath());
+-/* INFO_VERSION_TITLE */
+-    simplelist_setline(str(LANG_VERSION));
+-/* INFO_VERSION */
+-    simplelist_setline(rbversion);
++    /* podmod: a plain About screen (model, songs, space, battery, version)
++       in place of Rockbox's technical info list */
+ #if CONFIG_RTC
+-
+-    tm = get_time();
+-    if (valid_time(tm))
++    (void)tm;
++#endif
++    simplelist_reset_lines();
++    simplelist_setline("iPod mini");
++#ifdef HAVE_TAGCACHE
+     {
+-/* INFO_DATE */
+-        simplelist_addline("%s %d %d",
+-            str(LANG_MONTH_JANUARY + tm->tm_mon),
+-            tm->tm_mday,
+-            tm->tm_year+1900);
+-/* INFO_TIME */
+-        simplelist_addline("%02d:%02d:%02d %s",
+-            global_settings.timeformat == 0 ? tm->tm_hour :
+-                 ((tm->tm_hour + 11) % 12) + 1,
+-                 tm->tm_min,
+-                 tm->tm_sec,
+-                 global_settings.timeformat == 0 ? "" :
+-                 tm->tm_hour>11 ? "P" : "A");
++        struct tagcache_stat *st = tagcache_get_stat();
++        if (st->ready)
++            simplelist_addline("Songs: %d", st->total_entries);
++        else
++            simplelist_setline("Songs: -");
+     }
+-    else
++#endif
++    if (info->size[0])
+     {
+-/* INFO_DATE */
+-        simplelist_setline(str(LANG_UNKNOWN));
+-/* INFO_TIME */
+-        simplelist_setline("--:--:--");
++        output_dyn_value(s1, sizeof s1, info->free[0], kibyte_units, 3, true);
++        output_dyn_value(s2, sizeof s2, info->size[0], kibyte_units, 3, true);
++        simplelist_addline("Capacity: %s", s2);
++        simplelist_addline("Available: %s", s1);
+     }
++#if CONFIG_CHARGING >= CHARGING_MONITOR
++    if (charging_state())
++        simplelist_setline("Battery: Charging");
++    else
+ #endif
+-/* INFO_DISK, capacity/free on internal */
+-    for (int i = 0; i < NUM_VOLUMES ; i++) {
+-        if (info->size[i]) {
+-            output_dyn_value(s1, sizeof s1, info->free[i], kibyte_units, 3, true);
+-            output_dyn_value(s2, sizeof s2, info->size[i], kibyte_units, 3, true);
+-            simplelist_addline("%s %s/%s", str(info->name[i]), s1, s2);
+-#ifdef HAVE_MULTIVOLUME
+-        } else if (info->name[i]) {
+-            simplelist_addline("%s %s", str(info->name[i]),
+-                str(LANG_NOT_PRESENT));
+-#endif
+-        }
+-    }
++    if (battery_level() >= 0)
++        simplelist_addline("Battery: %d%%", battery_level());
++    simplelist_setline("Version: 1.0");
++    simplelist_addline("Rockbox %s", rbversion);
+ 
+     return action;
+ }
+@@ -506,19 +459,44 @@ MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
+ /***********************************/
+ /*    MAIN MENU                    */
+ 
+-MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
++/* podmod: a short, plain Settings menu. Rockbox's full settings tree is
++   still available under "Advanced". */
++MENUITEM_SETTING(pm_shuffle, &global_settings.playlist_shuffle, NULL);
++MENUITEM_SETTING(pm_repeat, &global_settings.repeat_mode, NULL);
++MENUITEM_SETTING(pm_backlight, &global_settings.backlight_timeout, NULL);
++MENUITEM_SETTING(pm_contrast, &global_settings.contrast, NULL);
++MENUITEM_SETTING(pm_keyclick, &global_settings.keyclick, NULL);
++char* sleeptimer_getname(int selected_item, void * data,
++                         char *buffer, size_t buffer_len);
++int sleeptimer_voice(int selected_item, void*data);
++MENUITEM_FUNCTION_DYNTEXT(pm_sleeptimer, 0, toggle_sleeptimer,
++                          sleeptimer_getname, sleeptimer_voice, NULL,
++                          NULL, Icon_NOICON);
++
++MAKE_MENU(pm_advanced, ID2P(LANG_PODMOD_ADVANCED), NULL,
+         Icon_Submenu_Entered,
+         &sound_settings,
+         &playback_settings,
+         &settings_menu_item, &theme_menu,
+-#ifdef HAVE_RECORDING
+-        &recording_settings,
+-#endif
++        &manage_settings,
++        &info_menu,
++        );
++
++MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
++        Icon_Submenu_Entered,
++        &pm_shuffle,
++        &pm_repeat,
++        &sound_settings,
++        &pm_backlight,
++        &pm_contrast,
++        &pm_keyclick,
++        &pm_sleeptimer,
+ #if CONFIG_RTC
+         &timedate_item,
+ #endif
+-        &main_menu_config_item,
+-        &manage_settings,
++        &show_info_item,
++        &pm_advanced,
+         );
++
+ /*    MAIN MENU                    */
+ /***********************************/
+diff --git a/apps/tagtree.c b/apps/tagtree.c
+index 35631c74..dc0615ef 100644
+--- a/apps/tagtree.c
++++ b/apps/tagtree.c
+@@ -1719,19 +1719,8 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
+ 
+     if (tag != tag_title && tag != tag_filename)
+     {
+-        bool show_album_sorted = (tag == tag_album);
+-        int show_album_sorted_offset = (show_album_sorted ? 1 : 0);
+-        if (offset == 0 && show_album_sorted)
+-        {
+-            dptr->newtable = TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS;
+-            dptr->name = ID2P(LANG_TAGNAVI_ALL_TRACKS_SORTED_BY_ALBUM);
+-            dptr->extraseek = 0;
+-            dptr->customaction = ONPLAY_NO_CUSTOMACTION;
+-            dptr++;
+-            current_entry_count++;
+-            c->special_entry_count++;
+-        }
+-        if (offset <= (show_album_sorted_offset))
++        /* podmod: a single "all songs" entry; no "by album" or random entries */
++        if (offset == 0)
+         {
+             dptr->newtable = TABLE_ALLSUBENTRIES;
+             dptr->name = ID2P(LANG_TAGNAVI_ALL_TRACKS);
+@@ -1741,20 +1730,8 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
+             current_entry_count++;
+             c->special_entry_count++;
+         }
+-        if (offset <= (1 + show_album_sorted_offset))
+-        {
+-            dptr->newtable = TABLE_NAVIBROWSE;
+-            dptr->name = ID2P(LANG_TAGNAVI_RANDOM);
+-            dptr->extraseek = -1;
+-            dptr->customaction = ONPLAY_NO_CUSTOMACTION;
+-            dptr++;
+-            current_entry_count++;
+-            c->special_entry_count++;
+-        }
+ 
+-        total_count += 2;
+-        if (show_album_sorted)
+-            total_count++;
++        total_count += 1;
+     }
+ 
+     while (tagcache_get_next(&tcs, tcs_buf, tcs_bufsz))

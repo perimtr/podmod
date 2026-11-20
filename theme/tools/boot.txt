@@ -1,0 +1,4 @@
+wait 150
+raw b1.bmp
+wait 300
+quit

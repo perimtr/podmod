@@ -1,0 +1,12 @@
+podmod is published under two licences. See README.md, "Licensing".
+
+- firmware/podmod-firmware.patch, simulator/podmod-simulator.patch and anything
+  built from them are derived from Rockbox and are licensed under the GNU
+  General Public License, version 2 or (at your option) any later version.
+  Full text: LICENSES/GPL-2.0-or-later.txt
+
+- fonts/15-Podmod-Helvetica-Bold.* are derived from the Adobe Helvetica bitmap
+  font and remain under its original notice. Full text: LICENSES/Adobe-Helvetica-BDF.txt
+
+- Everything else (scripts, theme files, generators, documentation) is licensed
+  under the MIT License. Full text: LICENSES/MIT.txt

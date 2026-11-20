@@ -1,0 +1,97 @@
+diff --git a/firmware/target/hosted/sdl/button-sdl.c b/firmware/target/hosted/sdl/button-sdl.c
+index a329bb6f..19b4dfd3 100644
+--- a/firmware/target/hosted/sdl/button-sdl.c
++++ b/firmware/target/hosted/sdl/button-sdl.c
+@@ -19,6 +19,7 @@
+  ****************************************************************************/
+ 
+ #include <math.h>
++#include <unistd.h>
+ #include <stdlib.h>         /* EXIT_SUCCESS */
+ #include <stdio.h>
+ #include "sim-ui-defines.h"
+@@ -373,11 +374,57 @@ int sdl_event_filter(void *userdata, SDL_Event * event)
+ }
+ #endif
+ 
++/* podmod: scripted input for headless theme screenshots (PODMOD_SCRIPT=file) */
++static void podmod_key(int sym, bool down)
++{
++    SDL_Event e;
++    memset(&e, 0, sizeof(e));
++    e.type = down ? SDL_KEYDOWN : SDL_KEYUP;
++    e.key.keysym.sym = sym;
++    SDL_PushEvent(&e);
++}
++
++static int podmod_script_thread(void *arg)
++{
++    FILE *f = fopen((const char *)arg, "r");
++    char cmd[32], name[32];
++    int ms;
++    if (!f) return 0;
++    while (fscanf(f, "%31s", cmd) == 1) {
++        if (!strcmp(cmd, "wait") && fscanf(f, "%d", &ms) == 1) {
++            SDL_Delay(ms);
++        } else if ((!strcmp(cmd, "key") || !strcmp(cmd, "hold")) && fscanf(f, "%31s", name) == 1) {
++            int sym = 0;
++            ms = 60;
++            if (!strcmp(cmd, "hold")) fscanf(f, "%d", &ms);
++            if (!strcmp(name, "up")) sym = SDLK_UP;
++            else if (!strcmp(name, "down")) sym = SDLK_DOWN;
++            else if (!strcmp(name, "left")) sym = SDLK_LEFT;
++            else if (!strcmp(name, "right")) sym = SDLK_RIGHT;
++            else if (!strcmp(name, "select")) sym = SDLK_RETURN;
++            else if (!strcmp(name, "menu")) sym = SDLK_ESCAPE;
++            else if (!strcmp(name, "play")) sym = SDLK_SPACE;
++            if (sym) { podmod_key(sym, true); SDL_Delay(ms); podmod_key(sym, false); SDL_Delay(250); }
++        } else if (!strcmp(cmd, "dump")) {
++            podmod_key(SDLK_F5, true); SDL_Delay(60); podmod_key(SDLK_F5, false); SDL_Delay(500);
++        } else if (!strcmp(cmd, "raw") && fscanf(f, "%31s", name) == 1) {
++            extern SDL_Surface *lcd_surface; /* podmod_raw: works during boot too */
++            SDL_SaveBMP(lcd_surface, name);
++        } else if (!strcmp(cmd, "quit")) {
++            fflush(NULL);
++            _exit(0);
++        }
++    }
++    fclose(f);
++    return 0;
++}
++
+ void gui_message_loop(void)
+ {
+     SDL_Event event;
+     bool quit;
+ 
++
+     do {
+         /* wait for the next event */
+         if(SDL_WaitEvent(&event) == 0) {
+@@ -690,6 +737,9 @@ int button_read_device(void)
+ 
+ void button_init_device(void)
+ {
++    if (getenv("PODMOD_SCRIPT"))
++        SDL_CreateThread(podmod_script_thread, "podmod", getenv("PODMOD_SCRIPT"));
++
+ #ifdef SIMULATOR
+     if (!sdl_focus_cursor)
+         sdl_focus_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+diff --git a/tools/configure b/tools/configure
+index a78711f6..26b268f6 100755
+--- a/tools/configure
++++ b/tools/configure
+@@ -399,9 +399,9 @@ simcc () {
+    # versions of macOS (≥ 26.4). Fall back to SDL threads.
+    echo "Darwin host detected"
+    if $CC --version | grep -q "clang"; then
+-    CC=gcc-16
+-    AR=gcc-ar-16
+-    CPP=cpp-16
++    CC=clang
++    AR=ar
++    CPP="clang -E"
+    fi
+    LDOPTS="$LDOPTS -ldl"
+    SHARED_LDFLAGS="-dynamiclib -Wl,-no_warn_duplicate_libraries"
