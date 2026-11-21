@@ -282,13 +282,38 @@ index a09d81de..3d78fdad 100644
 +
  /*    MAIN MENU                    */
  /***********************************/
+diff --git a/apps/tagcache.c b/apps/tagcache.c
+index 9025a667..cf458fcf 100644
+--- a/apps/tagcache.c
++++ b/apps/tagcache.c
+@@ -2517,14 +2517,15 @@ static int compare(const void *p1, const void *p2)
+     struct tempbuf_searchidx *e1 = (struct tempbuf_searchidx *)p1;
+     struct tempbuf_searchidx *e2 = (struct tempbuf_searchidx *)p2;
+ 
++    /* podmod: untagged entries go to the end of a list, not the top */
+     if (strcmp(e1->str, UNTAGGED) == 0)
+     {
+         if (strcmp(e2->str, UNTAGGED) == 0)
+             return 0;
+-        return -1;
++        return 1;
+     }
+     else if (strcmp(e2->str, UNTAGGED) == 0)
+-        return 1;
++        return -1;
+ 
+     return strncasecmp(e1->str, e2->str, TAG_MAXLEN);
+ }
 diff --git a/apps/tagtree.c b/apps/tagtree.c
-index 35631c74..dc0615ef 100644
+index 35631c74..59011ca6 100644
 --- a/apps/tagtree.c
 +++ b/apps/tagtree.c
-@@ -1719,19 +1719,8 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
+@@ -1717,21 +1717,11 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
+     tree_lock_cache(c);
+     struct tagentry *dptr = core_get_data(c->cache.entries_handle);
  
-     if (tag != tag_title && tag != tag_filename)
+-    if (tag != tag_title && tag != tag_filename)
++    if (tag != tag_title && tag != tag_filename && level > 0)
      {
 -        bool show_album_sorted = (tag == tag_album);
 -        int show_album_sorted_offset = (show_album_sorted ? 1 : 0);
@@ -303,12 +328,13 @@ index 35631c74..dc0615ef 100644
 -            c->special_entry_count++;
 -        }
 -        if (offset <= (show_album_sorted_offset))
-+        /* podmod: a single "all songs" entry; no "by album" or random entries */
++        /* podmod: a single "all songs" entry; no "by album" or random entries.
++           Not in the first list of a menu, where it would only repeat "Songs". */
 +        if (offset == 0)
          {
              dptr->newtable = TABLE_ALLSUBENTRIES;
              dptr->name = ID2P(LANG_TAGNAVI_ALL_TRACKS);
-@@ -1741,20 +1730,8 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
+@@ -1741,20 +1731,8 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
              current_entry_count++;
              c->special_entry_count++;
          }

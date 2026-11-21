@@ -16,7 +16,7 @@ behaves like the original on top.
 | ![Main menu](docs/screenshots/main-menu.png) | ![Music](docs/screenshots/music.png) | ![Artists](docs/screenshots/artists.png) | ![Albums](docs/screenshots/albums.png) |
 | Main menu | Music | Artists | An artist's albums |
 | ![Songs](docs/screenshots/songs.png) | ![Now Playing](docs/screenshots/now-playing.png) | ![Volume](docs/screenshots/volume.png) | ![Settings](docs/screenshots/settings.png) |
-| Songs | Now Playing | Volume while turning the wheel | Settings |
+| An album's songs | Now Playing | Volume while turning the wheel | Settings |
 | ![Advanced](docs/screenshots/advanced.png) | ![About](docs/screenshots/about.png) | | |
 | Advanced | About | | |
 
