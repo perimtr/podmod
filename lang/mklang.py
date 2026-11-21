@@ -9,6 +9,7 @@ RENAME = {
     'LANG_TAGNAVI_ALL_TRACKS': 'All Songs',
     'LANG_TAGNAVI_RANDOM': 'Shuffle',
     'LANG_TAGNAVI_UNTAGGED': 'Unknown',
+    'LANG_CATALOG_NO_PLAYLISTS': 'No playlists yet. Copy playlist files to the Playlists folder.',
     'LANG_ROCKBOX_INFO': 'About',
     'LANG_SOUND_SETTINGS': 'Sound',
     'LANG_KEYCLICK': 'Clicker',

@@ -282,6 +282,264 @@ index a09d81de..3d78fdad 100644
 +
  /*    MAIN MENU                    */
  /***********************************/
+diff --git a/apps/playlist_viewer.c b/apps/playlist_viewer.c
+index 94539ce0..63663244 100644
+--- a/apps/playlist_viewer.c
++++ b/apps/playlist_viewer.c
+@@ -936,7 +936,13 @@ static bool open_playlist_viewer(const char* filename,
+             dir = "/";
+             file = filename + 1;
+         }
+-        viewer.title = file;
++        /* podmod: show the playlist's name without its file extension */
++        static char title_buf[MAX_PATH];
++        strlcpy(title_buf, file, sizeof(title_buf));
++        char *dot = strrchr(title_buf, '.');
++        if (dot && dot != title_buf)
++            *dot = '\0';
++        viewer.title = title_buf;
+     }
+     else
+         viewer.title = (char *) str(LANG_PLAYLIST);
+diff --git a/apps/recorder/keyboard.c b/apps/recorder/keyboard.c
+index cb00fef7..ff37f391 100644
+--- a/apps/recorder/keyboard.c
++++ b/apps/recorder/keyboard.c
+@@ -449,6 +449,223 @@ static void kbd_move_picker_horizontal(struct keyboard_parameters *pm,
+ static void kbd_move_picker_vertical(struct keyboard_parameters *pm,
+                                      struct edit_state *state, int dir);
+ 
++#if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_WIDTH == 138)
++/* podmod: a naming screen sized for the iPod mini and its click wheel.
++ *
++ * Large letters in a 10x5 grid, with Delete and Done as visible buttons
++ * along the bottom. The wheel moves through every letter and button in turn,
++ * Select types the letter or presses the button, Play also finishes and Menu
++ * goes back without saving. Capitals are chosen automatically (first letter
++ * of each word). When the text is a full path, only the name is shown. */
++#define PODMOD_KBD
++#define PK_COLS    10
++#define PK_ROWS    5
++#define PK_CELLS   (PK_COLS * PK_ROWS)
++#define PK_CELL_W  13
++#define PK_CELL_H  15
++#define PK_GRID_X  ((LCD_WIDTH - PK_COLS * PK_CELL_W) / 2)
++#define PK_GRID_Y  19
++#define PK_BTN_Y   (PK_GRID_Y + PK_ROWS * PK_CELL_H)
++#define PK_BTN_W   (LCD_WIDTH / 3)
++enum { PK_BTN_PAGE = PK_CELLS, PK_BTN_DELETE, PK_BTN_DONE, PK_ITEMS };
++
++static const unsigned char * const pk_pages[2] = {
++    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,-'&()!?+_#@",
++    "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789 .,-'!?",
++};
++static const unsigned char * const pk_page_names[2] = { "ABC", "АБВ" };
++
++static ucschar_t pk_cell(int page, int n)
++{
++    const unsigned char *p = pk_pages[page];
++    ucschar_t ch = 0;
++    do
++        p = utf8decode(p, &ch);
++    while (n-- > 0);
++    return ch;
++}
++
++static ucschar_t pk_lower(ucschar_t ch)
++{
++    if (ch >= 'A' && ch <= 'Z')
++        return ch + 0x20;
++    if (ch >= 0x410 && ch <= 0x42F)   /* Cyrillic capitals */
++        return ch + 0x20;
++    if (ch == 0x401)                  /* Cyrillic IO */
++        return 0x451;
++    return ch;
++}
++
++static void pk_centre(struct screen *sc, int x, int y, int w,
++                      const unsigned char *str)
++{
++    int sw, sh;
++    sc->getstringsize(str, &sw, &sh);
++    sc->putsxy(x + (w - sw) / 2, y, str);
++}
++
++static void pk_draw(struct screen *sc, const unsigned char *name, int page,
++                    int sel, bool cursor)
++{
++    unsigned char buf[8];
++    int i, w, h;
++
++    sc->set_drawmode(DRMODE_SOLID);
++    sc->clear_display();
++
++    /* the name, showing its end if it is too long for the screen */
++    const unsigned char *shown = name;
++    while (sc->getstringsize(shown, &w, &h) > LCD_WIDTH - 8 && *shown)
++    {
++        ucschar_t skip;
++        shown = utf8decode(shown, &skip);
++    }
++    sc->putsxy(3, 1, shown);
++    if (cursor)
++        sc->vline(4 + w, 2, PK_CELL_H);
++    sc->hline(0, LCD_WIDTH - 1, PK_GRID_Y - 2);
++
++    for (i = 0; i < PK_CELLS; i++)
++    {
++        int x = PK_GRID_X + (i % PK_COLS) * PK_CELL_W;
++        int y = PK_GRID_Y + (i / PK_COLS) * PK_CELL_H;
++        ucschar_t ch = pk_cell(page, i);
++        if (ch == ' ')
++        {   /* draw the space key as a bracket */
++            sc->hline(x + 2, x + PK_CELL_W - 3, y + PK_CELL_H - 4);
++            sc->vline(x + 2, y + PK_CELL_H - 7, y + PK_CELL_H - 4);
++            sc->vline(x + PK_CELL_W - 3, y + PK_CELL_H - 7, y + PK_CELL_H - 4);
++        }
++        else
++        {
++            *utf8encode(ch, buf) = '\0';
++            pk_centre(sc, x, y, PK_CELL_W, buf);
++        }
++    }
++
++    sc->hline(0, LCD_WIDTH - 1, PK_BTN_Y);
++    pk_centre(sc, 0, PK_BTN_Y + 1, PK_BTN_W, pk_page_names[!page]);
++    pk_centre(sc, PK_BTN_W, PK_BTN_Y + 1, PK_BTN_W, "Delete");
++    pk_centre(sc, 2 * PK_BTN_W, PK_BTN_Y + 1, PK_BTN_W, "Done");
++
++    sc->set_drawmode(DRMODE_COMPLEMENT);
++    if (sel < PK_CELLS)
++        sc->fillrect(PK_GRID_X + (sel % PK_COLS) * PK_CELL_W,
++                     PK_GRID_Y + (sel / PK_COLS) * PK_CELL_H,
++                     PK_CELL_W, PK_CELL_H);
++    else
++        sc->fillrect((sel - PK_CELLS) * PK_BTN_W, PK_BTN_Y + 1,
++                     PK_BTN_W, LCD_HEIGHT - PK_BTN_Y - 1);
++    sc->set_drawmode(DRMODE_SOLID);
++    sc->update();
++}
++
++static void pk_delete(unsigned char *name)
++{
++    int len = strlen(name);
++    if (len == 0)
++        return;
++    do
++        len--;
++    while (len > 0 && (name[len] & 0xC0) == 0x80);
++    name[len] = '\0';
++}
++
++static int podmod_kbd_input(char *text, int buflen)
++{
++    struct screen *sc = &screens[SCREEN_MAIN];
++    unsigned char name[MAX_PATH];
++    unsigned char enc[8];
++    char *base = text;
++    int room, page = 0, sel, ret = 0;
++    bool done = false, cursor = true;
++
++    /* a full path: edit only the name, keep the folder */
++    if (text[0] == '/')
++        base = strrchr(text, '/') + 1;
++    room = MIN(buflen - (base - text), (int)sizeof(name));
++    strlcpy(name, base, room);
++    sel = name[0] ? PK_BTN_DONE : 0;
++
++    viewportmanager_theme_enable(SCREEN_MAIN, false, NULL);
++    sc->set_viewport(NULL);
++    sc->setfont(FONT_UI);
++
++    while (!done)
++    {
++        pk_draw(sc, name, page, sel, cursor);
++        cursor = !cursor;
++        int button = get_action(CONTEXT_KEYBOARD, HZ/2);
++        if (button != ACTION_NONE)
++            cursor = true;
++
++        switch (button)
++        {
++            case ACTION_KBD_DOWN:
++                sel = (sel + 1) % PK_ITEMS;
++                break;
++
++            case ACTION_KBD_UP:
++                sel = (sel + PK_ITEMS - 1) % PK_ITEMS;
++                break;
++
++            case ACTION_KBD_LEFT:
++                pk_delete(name);
++                break;
++
++            case ACTION_KBD_SELECT:
++                if (sel == PK_BTN_DONE)
++                    done = true;
++                else if (sel == PK_BTN_DELETE)
++                    pk_delete(name);
++                else if (sel == PK_BTN_PAGE)
++                    page = !page;
++                else
++                {
++                    int len = strlen(name);
++                    ucschar_t ch = pk_cell(page, sel);
++                    if (len == 0 && ch == ' ')
++                        break;
++                    if (len > 0 && name[len - 1] != ' ' && name[len - 1] != '('
++                                && name[len - 1] != '-')
++                        ch = pk_lower(ch);
++                    int n = utf8encode(ch, enc) - enc;
++                    if (len + n < room)
++                    {
++                        memcpy(&name[len], enc, n);
++                        name[len + n] = '\0';
++                    }
++                }
++                break;
++
++            case ACTION_KBD_DONE:
++                done = true;
++                break;
++
++            case ACTION_KBD_ABORT:
++                ret = -1;
++                done = true;
++                break;
++
++            default:
++                if (default_event_handler(button) == SYS_USB_CONNECTED)
++                {
++                    ret = -1;
++                    done = true;
++                }
++                break;
++        }
++    }
++
++    if (ret == 0)
++        strlcpy(base, name, room);
++
++    sc->setfont(FONT_UI);
++    viewportmanager_theme_undo(SCREEN_MAIN, false);
++    return ret;
++}
++#endif /* podmod keyboard */
++
+ int kbd_input(char* text, int buflen, ucschar_t *kbd)
+ {
+     bool done = false;
+@@ -456,6 +673,10 @@ int kbd_input(char* text, int buflen, ucschar_t *kbd)
+     struct edit_state state;
+     ucschar_t ch;
+     int ret = 0; /* assume success */
++#ifdef PODMOD_KBD
++    (void)kbd;
++    return podmod_kbd_input(text, buflen);
++#endif
+     FOR_NB_SCREENS(l)
+     {
+         viewportmanager_theme_enable(l, false, NULL);
 diff --git a/apps/tagcache.c b/apps/tagcache.c
 index 9025a667..cf458fcf 100644
 --- a/apps/tagcache.c
@@ -356,3 +614,21 @@ index 35631c74..59011ca6 100644
      }
  
      while (tagcache_get_next(&tcs, tcs_buf, tcs_bufsz))
+diff --git a/apps/tree.c b/apps/tree.c
+index 45022696..7064409b 100644
+--- a/apps/tree.c
++++ b/apps/tree.c
+@@ -756,8 +756,11 @@ static int dirbrowse(void)
+ 
+     if (*tc.dirfilter > NUM_FILTER_MODES && numentries==0)
+     {
+-        splash(HZ*2, *tc.dirfilter == SHOW_M3U ?
+-                     ID2P(LANG_CATALOG_NO_PLAYLISTS) : ID2P(LANG_NO_FILES));
++        /* podmod: the playlists hint is a sentence; leave time to read it */
++        if (*tc.dirfilter == SHOW_M3U)
++            splash(HZ*4, ID2P(LANG_CATALOG_NO_PLAYLISTS));
++        else
++            splash(HZ*2, ID2P(LANG_NO_FILES));
+         return exit_to_new_screen(GO_TO_PREVIOUS);  /* No files found for rockbox_browse() */
+     }
+ 

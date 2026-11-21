@@ -9,6 +9,8 @@ behaves like the original on top.
 - Menu button goes back one level, as on Apple's firmware; hold it for the main menu
 - A ten-item Settings menu; Rockbox's full settings live under "Advanced"
 - A plain Now Playing screen and About screen
+- A large-type naming screen for the click wheel, with visible Delete and Done buttons and a Cyrillic page
+- Playlists: copy `.m3u` or `.m3u8` files to the `Playlists` folder; they are listed by name and show song titles
 - A startup logo drawn where the iPod's own power-on logo sits, so there is no jump
 
 | | | | |
@@ -17,8 +19,10 @@ behaves like the original on top.
 | Main menu | Music | Artists | An artist's albums |
 | ![Songs](docs/screenshots/songs.png) | ![Now Playing](docs/screenshots/now-playing.png) | ![Volume](docs/screenshots/volume.png) | ![Settings](docs/screenshots/settings.png) |
 | An album's songs | Now Playing | Volume while turning the wheel | Settings |
-| ![Advanced](docs/screenshots/advanced.png) | ![About](docs/screenshots/about.png) | | |
-| Advanced | About | | |
+| ![Advanced](docs/screenshots/advanced.png) | ![About](docs/screenshots/about.png) | ![Playlists](docs/screenshots/playlists.png) | ![A playlist](docs/screenshots/playlist.png) |
+| Advanced | About | Playlists | A playlist |
+| ![Naming a playlist](docs/screenshots/naming.png) | | | |
+| Naming a playlist | | | |
 
 Screenshots are from the Rockbox simulator, enlarged 2x. The real screen is
 138x110 pixels in four shades of grey.
@@ -40,7 +44,7 @@ Mac-formatted. Expect to adapt it for anything else.
 
 | Path | What it is |
 |---|---|
-| `firmware/podmod-firmware.patch` | Changes to Rockbox: Menu button, Settings, About, list entries, startup logo |
+| `firmware/podmod-firmware.patch` | Changes to Rockbox: Menu button, Settings, About, list entries, playlists, naming screen, startup logo |
 | `firmware/build.sh` | Fetches Rockbox at the pinned commit, applies the patch, builds the firmware |
 | `firmware/mklogo.py`, `logo-placeholder.txt` | Startup logo generator and a neutral placeholder drawing |
 | `tools/build-toolchain.sh` | Builds Rockbox's ARM compiler (GCC 9.5) on Apple Silicon without Homebrew |
