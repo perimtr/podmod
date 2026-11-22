@@ -282,11 +282,102 @@ index a09d81de..3d78fdad 100644
 +
  /*    MAIN MENU                    */
  /***********************************/
+diff --git a/apps/onplay.c b/apps/onplay.c
+index d3835238..7796d2b0 100644
+--- a/apps/onplay.c
++++ b/apps/onplay.c
+@@ -1245,22 +1245,11 @@ static int onplaymenu_callback(int action,
+                                struct gui_synclist *this_list);
+ 
+ /* used when onplay() is called in the CONTEXT_WPS context */
++/* podmod: a short list - playlists for this song, and the play queue */
+ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
+            onplaymenu_callback, Icon_Audio,
+-           &wps_playlist_menu, &cat_playlist_menu,
+-           &sound_settings, &playback_settings,
+-#ifdef HAVE_TAGCACHE
+-           &rating_item,
+-#endif
+-           &bookmark_menu,
+-           &view_cue_item,
+-#ifndef HAVE_HOTKEY
+-           &context_item_0,
+-#endif
+-           &context_item_1,
+-           &context_item_2,
+-           &context_item_3,
+-           &context_item_4,
++           &cat_add_to_list, &cat_add_to_new,
++           &wps_view_cur_playlist_item, &playlist_save_item,
+          );
+ 
+ int sort_playlists_callback(int action,
+@@ -1285,22 +1274,21 @@ MENUITEM_FUNCTION(view_playlist_item, 0, ID2P(LANG_VIEW),
+                   onplaymenu_callback, Icon_Playlist);
+ 
+ /* used when onplay() is not called in the CONTEXT_WPS context */
++/* podmod: a short list - queue it, add it to a playlist, and for playlists
++   themselves rename or delete */
+ MAKE_ONPLAYMENU( tree_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
+            onplaymenu_callback, Icon_file_view_menu,
+-           &view_playlist_item, &tree_playlist_menu, &cat_playlist_menu,
+-           &rename_file_item, &clipboard_cut_item, &clipboard_copy_item,
+-           &clipboard_paste_item, &delete_file_item, &delete_dir_item,
+-           &list_viewers_item, &create_dir_item, &properties_item, &track_info_item,
+-           &reveal_item,
+-#ifdef HAVE_TAGCACHE
+-           &pictureflow_item,
+-#endif
+-#if LCD_DEPTH > 1
+-           &set_backdrop_item,
+-#endif
+-           &add_to_faves_item, &set_as_dir_menu, &file_menu, &sort_playlists,
++           &i_first_pl_item, &i_last_pl_item,
++           &cat_add_to_list, &cat_add_to_new,
++           &rename_file_item, &delete_file_item,
+          );
+ 
++/* podmod: Rockbox items that are no longer listed anywhere */
++static const void * const podmod_unlisted[] __attribute__((unused)) = {
++    &bookmark_menu, &wps_playlist_menu, &sort_playlists,
++    &context_item_1, &context_item_2, &context_item_3, &context_item_4,
++};
++
+ static int onplaymenu_callback(int action,
+                                const struct menu_item_ex *this_item,
+                                struct gui_synclist *this_list)
 diff --git a/apps/playlist_viewer.c b/apps/playlist_viewer.c
-index 94539ce0..63663244 100644
+index 94539ce0..d910e168 100644
 --- a/apps/playlist_viewer.c
 +++ b/apps/playlist_viewer.c
-@@ -936,7 +936,13 @@ static bool open_playlist_viewer(const char* filename,
+@@ -699,21 +699,16 @@ static enum pv_context_result context_menu(int index)
+     bool current_was_playing = (audio_status() & AUDIO_STATUS_PLAY) && /* or paused */
+                                (current_track->index == viewer.current_playing_track);
+ 
+-    MENUITEM_STRINGLIST(menu_items, ID2P(LANG_PLAYLIST), NULL,
+-                        ID2P(LANG_PLAYING_NEXT), ID2P(LANG_ADD_TO_PL),
+-                        ID2P(LANG_REMOVE), ID2P(LANG_MOVE),
+-                        ID2P(LANG_MENU_SHOW_ID3_INFO),
+-                        ID2P(LANG_SHUFFLE), ID2P(LANG_SAVE),
+-                        ID2P(LANG_PLAYLISTVIEWER_SETTINGS)
+-#ifdef HAVE_TAGCACHE
+-                        ,ID2P(LANG_ONPLAY_PICTUREFLOW)
+-#endif
+-                        );
++    /* podmod: a short list; the numbers map onto Rockbox's full list below */
++    MENUITEM_STRINGLIST(menu_items, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
++                        ID2P(LANG_ADD_TO_PL), ID2P(LANG_REMOVE), ID2P(LANG_MOVE));
+     int sel = do_menu(&menu_items, NULL, NULL, false);
+     if (sel == MENU_ATTACHED_USB)
+         return PV_CONTEXT_USB;
+     else if (sel >= 0)
+     {
++        sel += 1; /* podmod: skip "Playing Next" */
++
+         /* Abort current move */
+         viewer.moving_track = -1;
+         viewer.moving_playlist_index = -1;
+@@ -936,10 +931,16 @@ static bool open_playlist_viewer(const char* filename,
              dir = "/";
              file = filename + 1;
          }
@@ -300,7 +391,11 @@ index 94539ce0..63663244 100644
 +        viewer.title = title_buf;
      }
      else
-         viewer.title = (char *) str(LANG_PLAYLIST);
+-        viewer.title = (char *) str(LANG_PLAYLIST);
++        viewer.title = (char *) str(LANG_VIEW_DYNAMIC_PLAYLIST); /* podmod */
+ 
+     /* Prevent UI from feeling unresponsive when retrieving
+        metadata, or on devices that use disk storage. */
 diff --git a/apps/recorder/keyboard.c b/apps/recorder/keyboard.c
 index cb00fef7..ff37f391 100644
 --- a/apps/recorder/keyboard.c
@@ -540,6 +635,21 @@ index cb00fef7..ff37f391 100644
      FOR_NB_SCREENS(l)
      {
          viewportmanager_theme_enable(l, false, NULL);
+diff --git a/apps/root_menu.c b/apps/root_menu.c
+index 918669b2..a9110d33 100644
+--- a/apps/root_menu.c
++++ b/apps/root_menu.c
+@@ -769,6 +769,10 @@ static int load_context_screen(int selection)
+         context_menu = &system_menu;
+     }
+ 
++    /* podmod: holding Select on the main menu does nothing; the menus it
++       used to open are all under Settings > Advanced */
++    context_menu = NULL;
++
+     if (context_menu)
+         retval = do_menu(context_menu, NULL, NULL, false);
+     pop_current_activity();
 diff --git a/apps/tagcache.c b/apps/tagcache.c
 index 9025a667..cf458fcf 100644
 --- a/apps/tagcache.c
